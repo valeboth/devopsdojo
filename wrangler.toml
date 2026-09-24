@@ -25,9 +25,10 @@ pattern = "devopsdojo.valegboth.win"
 custom_domain = true
 
 # --- D1 (users, content, FSRS review state) ---
-# Create it once with `npx wrangler d1 create devopsdojo-db`, then paste the id.
+# Created with `npx wrangler d1 create devopsdojo-db`. The binding is DB, not the
+# database name wrangler suggests: src/lib/server/db/client.ts reads platform.env.DB.
 [[d1_databases]]
 binding = "DB"
 database_name = "devopsdojo-db"
-database_id = "PLACEHOLDER_RUN_WRANGLER_D1_CREATE"
+database_id = "b5cd6f58-f36b-47a9-b0c2-254bbb669759"
 migrations_dir = "drizzle"
