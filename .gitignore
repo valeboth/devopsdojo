@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Secrets & local env — NEVER in the repo
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+.env
+.env.*
+*.env
+
+# SvelteKit / Vite
+.svelte-kit/
+build/
+dist/
+
+# Wrangler / Cloudflare
+.wrangler/
+
+# content:sync output (generated SQL, reproducible from content/)
+.sync/
+
+# Raw course transcripts — paid material, facts only reach content/sources/notes/
+content/sources/transcripts/
+
+# Tests
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Claude Code local config
+.claude/

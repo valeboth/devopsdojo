@@ -1,0 +1,33 @@
+name: Content issue
+description: A card is wrong, ambiguous, outdated or badly translated.
+labels: [content]
+body:
+  - type: input
+    id: card
+    attributes:
+      label: Card id
+      placeholder: linux.permissions.chmod-basics-01
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is wrong
+      options:
+        - The marked answer is incorrect
+        - More than one answer is defensible
+        - The explanation does not explain
+        - Outdated (tool or version has changed)
+        - Translation is wrong or missing
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: detail
+    attributes:
+      label: Details
+      description: What the card should say instead, and a source if you have one.
+    validations:
+      required: true

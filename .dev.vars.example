@@ -1,0 +1,27 @@
+# Copy to .dev.vars (gitignored) and fill in. In production these are set with
+# `wrangler secret put <NAME>` — never committed, never sent to the browser.
+
+# Session signing key. Generate with: openssl rand -base64 32
+BETTER_AUTH_SECRET=
+
+# Where the app is reachable. Must match the OAuth callback URLs below.
+# local: http://localhost:5173   prod: https://devopsdojo.valegboth.win
+BETTER_AUTH_URL=http://localhost:5173
+
+# GitHub OAuth App — required.
+# Callback: http://localhost:5173/api/auth/callback/github
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+
+# Google OAuth client — optional; the /login Google button 500s without it.
+# Callback: http://localhost:5173/api/auth/callback/google
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# Comma-separated signup allowlist. Empty or unset = anyone may sign up.
+# A bare domain works too: ALLOWED_EMAILS=me@example.com,@mycompany.com
+ALLOWED_EMAILS=
+
+# Only used by scripts/sources/reddit.ts (Phase 2); not needed to run the app.
+REDDIT_CLIENT_ID=
+REDDIT_CLIENT_SECRET=

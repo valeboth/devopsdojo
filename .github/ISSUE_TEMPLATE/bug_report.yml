@@ -1,0 +1,33 @@
+name: Bug report
+description: Something in the app behaves incorrectly.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, and what the app did instead of what you expected.
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device and browser
+      description: The app is phone-first, so the viewport matters.
+      placeholder: iPhone 13, Safari 18 / Pixel 7, Chrome 130
+    validations:
+      required: true
+
+  - type: input
+    id: card
+    attributes:
+      label: Card or topic id
+      description: If it happened during a study session, the id from the card footer.
+      placeholder: linux.permissions.chmod-basics-01
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Screenshots, console errors, whether it reproduces every time.

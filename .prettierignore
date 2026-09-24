@@ -1,0 +1,21 @@
+.svelte-kit/
+.wrangler/
+.sync/
+build/
+dist/
+coverage/
+drizzle/
+node_modules/
+playwright-report/
+test-results/
+package-lock.json
+content/sources/transcripts/
+
+# Verbatim documents. Reformatting these would create a diff against the source
+# they were copied from, which is the one thing that makes them worth keeping.
+prompt.md
+arhitecture.md
+docs/PROMPT-v2.1.md
+docs/architecture.md
+CODE_OF_CONDUCT.md
+LICENSE

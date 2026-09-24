@@ -1,0 +1,33 @@
+# devopsdojo — Cloudflare Workers configuration (IaC, versioned in the repo).
+# No secrets here: every value from .dev.vars.example goes through
+# `wrangler secret put` in production.
+
+name = "devopsdojo"
+main = ".svelte-kit/cloudflare/_worker.js"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+# Disabled: the app is only reachable on the custom domain below.
+workers_dev = false
+
+# --- Static assets ---
+# adapter-cloudflare emits the prerendered pages and the client bundle here.
+# Assets win over the Worker, so /_app/* is served from the edge cache and only
+# unmatched paths (SSR pages, /api/*) reach the Worker. One origin, no CORS.
+[assets]
+directory = ".svelte-kit/cloudflare"
+binding = "ASSETS"
+
+# --- Custom domain ---
+# Requires the valegboth.win zone in the same Cloudflare account. On deploy,
+# wrangler provisions the DNS record and the TLS certificate.
+[[routes]]
+pattern = "devopsdojo.valegboth.win"
+custom_domain = true
+
+# --- D1 (users, content, FSRS review state) ---
+# Create it once with `npx wrangler d1 create devopsdojo-db`, then paste the id.
+[[d1_databases]]
+binding = "DB"
+database_name = "devopsdojo-db"
+database_id = "PLACEHOLDER_RUN_WRANGLER_D1_CREATE"
+migrations_dir = "drizzle"
