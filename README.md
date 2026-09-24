@@ -208,4 +208,4 @@ and its terms are listed in
 [`content/sources/ATTRIBUTION.md`](content/sources/ATTRIBUTION.md), and the
 reasoning is in [ADR 008](docs/adr/008-apache-20-license.md).
 
-Built by [@valeboth](https://github.com/valeboth).
+
