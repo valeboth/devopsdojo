@@ -49,6 +49,20 @@ dashboard linked to `/learn`, a route that does not exist — SvelteKit's typed
 routes rejected it, correctly. The root page now shows the empty streak-0 state
 that the phase acceptance actually asks for.
 
+The first CI run then failed the `e2e` job with `No tests found`, because
+`tests/e2e/` did not exist — `check` never covered it. Writing
+`tests/e2e/smoke.spec.ts` uncovered a real bug rather than a test-harness one:
+under `vite preview` **every route returned 500**. adapter-cloudflare gives the
+preview server a real `platform.env`, so `hooks.server.ts` builds Better Auth on
+every request, and Better Auth throws when `BETTER_AUTH_SECRET` is unset. `vite
+dev` never hit it, so `localhost` looked fine. `playwright.config.ts` now hands
+`webServer` throwaway credentials (real ones from the shell take precedence), and
+all 8 tests pass on both `iphone-se` and `iphone-14`.
+
+Worth remembering for Phase 1: anything that runs only under `preview` or on
+Workers — not under `vite dev` — needs the env set, and `check` does not run the
+e2e suite, so CI is the first place that notices.
+
 The `npm run dev` → GitHub login → dashboard path cannot be verified until the D1
 `database_id` and the OAuth credentials exist. That is the first thing to do at the
 start of Phase 1.
@@ -107,21 +121,25 @@ the user's side:
 2. **OAuth credentials** — no login without them, and login gates every page.
 3. **Repo secrets** — `deploy.yml` is committed but will fail until
    `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` exist.
-4. **The GitHub repository** — commits are local only; there is no remote yet.
+   Resolved: the GitHub repository now exists at
+   [valeboth/devopsdojo](https://github.com/valeboth/devopsdojo), `main` is pushed, and
+   CI runs on it. Pushing happens from the user's shell, not from the assistant's
+   sandbox, which has no GitHub credentials and sits behind a TLS-intercepting proxy.
 
 ## Deliberate deviations from PROMPT-v2.1
 
 Recorded here rather than silently absorbed, per rule #10.
 
-| Deviation                                                                                                   | Why                                                                                                                                                                                                                                                                                                                                            |
-| ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `drizzle.config.ts` has no `driver: 'd1-http'` (§14 phase 0.3 asks for it)                                  | Migrations are generated offline from `schema.ts` and applied by `wrangler d1 migrations apply`. `d1-http` would need an API token and account id at _generate_ time, which puts credentials in a step that does not need them — and drizzle-kit does not require the driver to generate SQL for the sqlite dialect.                           |
-| The deck-level §12.4 rules live in `scripts/content/validate.ts`, not in Zod                                | Zod validates one file at a time. "A published deck needs ≥15 placement cards covering difficulty 1-5" is a statement about a directory, so it cannot be a refinement on a file schema. Per-file rules stayed in Zod, where the API and the UI get them too.                                                                                   |
-| `scripts/gen-icons.ts` exists (not in the §5 tree)                                                          | The PWA icons are derived from the `src/app.css` theme tokens instead of being committed as opaque binaries. Changing the accent colour and re-running `npm run icons` keeps the manifest in step with the app.                                                                                                                                |
-| `scripts/content/load.ts` exists (not in the §5 tree)                                                       | `stats`, `sync` and `translate-check` all need "every validated deck and topic". Without it each would re-walk `content/` with its own subtly different idea of ordering and error handling.                                                                                                                                                   |
-| Scripts run as `node --import tsx/esm <file>.ts`, not `tsx <file>.ts` (§15 lists `tsx scripts/seed-dev.ts`) | The `tsx` CLI opens an IPC unix socket under `$TMPDIR`, which the development sandbox denies with `EPERM` — so `content:validate`, and therefore `npm run check`, could not run at all. Using tsx as a loader under plain `node` does the same TypeScript stripping with no socket. Same behaviour in CI, one dependency less in the hot path. |
-| `npm run icons` added to the scripts table                                                                  | Needed to regenerate what `gen-icons.ts` produces; not part of `check`.                                                                                                                                                                                                                                                                        |
-| Verbatim documents are in `.prettierignore`                                                                 | `prompt.md`, `arhitecture.md`, their `docs/` copies, `CODE_OF_CONDUCT.md` and `LICENSE` are copies of external text. Letting a formatter rewrite them would produce a diff against the source they were copied from, which is the only reason to keep them verbatim.                                                                           |
+| Deviation                                                                                                   | Why                                                                                                                                                                                                                                                                                                                                                |
+| ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `drizzle.config.ts` has no `driver: 'd1-http'` (§14 phase 0.3 asks for it)                                  | Migrations are generated offline from `schema.ts` and applied by `wrangler d1 migrations apply`. `d1-http` would need an API token and account id at _generate_ time, which puts credentials in a step that does not need them — and drizzle-kit does not require the driver to generate SQL for the sqlite dialect.                               |
+| The deck-level §12.4 rules live in `scripts/content/validate.ts`, not in Zod                                | Zod validates one file at a time. "A published deck needs ≥15 placement cards covering difficulty 1-5" is a statement about a directory, so it cannot be a refinement on a file schema. Per-file rules stayed in Zod, where the API and the UI get them too.                                                                                       |
+| `scripts/gen-icons.ts` exists (not in the §5 tree)                                                          | The PWA icons are derived from the `src/app.css` theme tokens instead of being committed as opaque binaries. Changing the accent colour and re-running `npm run icons` keeps the manifest in step with the app.                                                                                                                                    |
+| `scripts/content/load.ts` exists (not in the §5 tree)                                                       | `stats`, `sync` and `translate-check` all need "every validated deck and topic". Without it each would re-walk `content/` with its own subtly different idea of ordering and error handling.                                                                                                                                                       |
+| Scripts run as `node --import tsx/esm <file>.ts`, not `tsx <file>.ts` (§15 lists `tsx scripts/seed-dev.ts`) | The `tsx` CLI opens an IPC unix socket under `$TMPDIR`, which the development sandbox denies with `EPERM` — so `content:validate`, and therefore `npm run check`, could not run at all. Using tsx as a loader under plain `node` does the same TypeScript stripping with no socket. Same behaviour in CI, one dependency less in the hot path.     |
+| `npm run icons` added to the scripts table                                                                  | Needed to regenerate what `gen-icons.ts` produces; not part of `check`.                                                                                                                                                                                                                                                                            |
+| `playwright.config.ts` sets `webServer.env` (§15 does not mention it)                                       | Under `vite preview` the adapter supplies a real `platform.env`, so Better Auth initialises and throws without `BETTER_AUTH_SECRET` — every route 500s and the whole e2e suite fails for a reason unrelated to the tests. The fallbacks are throwaway: the anonymous flows never reach a provider, and real values from the shell take precedence. |
+| Verbatim documents are in `.prettierignore`                                                                 | `prompt.md`, `arhitecture.md`, their `docs/` copies, `CODE_OF_CONDUCT.md` and `LICENSE` are copies of external text. Letting a formatter rewrite them would produce a diff against the source they were copied from, which is the only reason to keep them verbatim.                                                                               |
 
 ## Notes for later
 
