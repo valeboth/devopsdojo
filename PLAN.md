@@ -59,9 +59,20 @@ dev` never hit it, so `localhost` looked fine. `playwright.config.ts` now hands
 `webServer` throwaway credentials (real ones from the shell take precedence), and
 all 8 tests pass on both `iphone-se` and `iphone-14`.
 
-Worth remembering for Phase 1: anything that runs only under `preview` or on
-Workers — not under `vite dev` — needs the env set, and `check` does not run the
-e2e suite, so CI is the first place that notices.
+CI then failed the same job for a second, unrelated reason: workerd refused to
+start with `SQLITE_BUSY: database is locked`. Miniflare backs the D1 binding with
+one local SQLite file, and Playwright's default worker count (7 on the runner)
+fires enough concurrent requests at startup to kill the runtime, which takes the
+whole run with it. Reproduced locally at 7 and at 4 workers, clean at 1 — so the
+suite runs with `workers: 1`. The tests take seconds, and the concurrency worth
+testing is the app's, not the runner's. If the e2e suite ever grows past a minute,
+the fix is a per-worker `--persist-to` directory rather than more workers.
+
+Two things to remember for Phase 1. Anything that runs only under `preview` or on
+Workers — not under `vite dev` — needs the env set. And `check` does not run the
+e2e suite, so CI is the first place that notices: a local `npm run test:e2e` with a
+preview server already up will pass on a config that fails from cold, because
+`reuseExistingServer` skips the startup that breaks.
 
 The `npm run dev` → GitHub login → dashboard path cannot be verified until the D1
 `database_id` and the OAuth credentials exist. That is the first thing to do at the

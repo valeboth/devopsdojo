@@ -8,6 +8,13 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'list',
+  // One worker, deliberately. The preview server runs the real Worker through
+  // Miniflare, whose D1 is a single local SQLite file — concurrent requests make
+  // workerd die on startup with `SQLITE_BUSY: database is locked`, taking the
+  // whole run with it. Reproduced at 7 and at 4 workers, clean at 1. Nothing is
+  // lost: the suite is seconds long, and it is the app's own concurrency that
+  // matters, not the test runner's.
+  workers: 1,
   use: {
     baseURL: 'http://localhost:4173',
     trace: 'on-first-retry',
