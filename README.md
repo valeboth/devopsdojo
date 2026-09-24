@@ -207,5 +207,3 @@ material; raw course transcripts are gitignored and never committed. Every sourc
 and its terms are listed in
 [`content/sources/ATTRIBUTION.md`](content/sources/ATTRIBUTION.md), and the
 reasoning is in [ADR 008](docs/adr/008-apache-20-license.md).
-
-
