@@ -102,12 +102,16 @@ cd devopsdojo
 npm install
 
 cp .dev.vars.example .dev.vars        # then fill it in — see Secrets below
-npx wrangler d1 create devopsdojo-db  # paste the database_id into wrangler.toml
 npm run db:migrate:local              # create the tables in the local D1
 npm run seed:dev                      # optional: 1 deck, 2 topics, 20 fake cards
 
 npm run dev                           # http://localhost:5173
 ```
+
+The `database_id` in `wrangler.toml` is this project's. `db:migrate:local` only
+touches a local SQLite file under `.wrangler/`, so it works on a fresh clone as is;
+if you are deploying your own copy, run `npx wrangler d1 create <name>` and replace
+the id.
 
 `npm run dev` uses Vite with an emulated platform. To run against the real Workers
 runtime — worth doing before any deploy — use `npm run dev:wrangler`.

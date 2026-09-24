@@ -15,21 +15,21 @@ this file tracks where the build actually is against it.
 Deliverable: a repository that runs locally, GitHub login works, the schema exists
 in the local D1, CI is green on a PR.
 
-| #   | Item                                                                                                                                                                      | State                                                                                             |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| 1   | SvelteKit skeleton, TS strict, adapter-cloudflare, Tailwind 4, ESLint flat, Prettier, Vitest, Playwright (two mobile projects)                                            | ✅                                                                                                |
-| 2   | `wrangler.toml` — name, `main` from the adapter, D1 binding `DB`, `nodejs_compat`, `[assets]`                                                                             | ✅ `database_id` is still a placeholder — see [What the user has to do](#what-the-user-has-to-do) |
-| 3   | Drizzle `schema.ts` (18 tables: §6 + Better Auth), `drizzle.config.ts`, first migration in `drizzle/`                                                                     | ✅                                                                                                |
-| 4   | Better Auth (GitHub + Google, drizzleAdapter), `hooks.server.ts`, `/api/auth/[...all]`, `allowlist.ts` in `user.create.before`, `/login` with two buttons                 | ✅ Untested against real OAuth — needs the client IDs                                             |
-| 5   | `guards.ts` with `requireUser(event)`                                                                                                                                     | ✅                                                                                                |
-| 6   | CSP `mode: 'auto'` with strict directives                                                                                                                                 | ✅                                                                                                |
-| 7   | PWA — manifest, dark theme, `display: standalone`, minimal SW                                                                                                             | ✅ Icons generated from the theme tokens by `scripts/gen-icons.ts`                                |
-| 8   | `src/lib/srs/` — FSRS + unit tests, including the property tests                                                                                                          | ✅ 21 tests                                                                                       |
-| 9   | `src/lib/cards/schemas.ts` + a test per refinement                                                                                                                        | ✅ 60 tests                                                                                       |
-| 10  | `.dev.vars.example` with every §15 variable                                                                                                                               | ✅                                                                                                |
-| 11  | `.github/workflows/ci.yml` + `deploy.yml`                                                                                                                                 | ✅ Deploy needs the repo secrets before it can run                                                |
-| 12  | `LICENSE`, `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `PLAN.md`, ADR 001-008, `docs/PROMPT-v2.1.md`, `docs/architecture.md` with the delta note | ✅                                                                                                |
-| 13  | `seed-dev.ts` — 1 deck, 2 topics, 20 fake cards, local D1 only                                                                                                            | ✅                                                                                                |
+| #   | Item                                                                                                                                                                      | State                                                                  |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 1   | SvelteKit skeleton, TS strict, adapter-cloudflare, Tailwind 4, ESLint flat, Prettier, Vitest, Playwright (two mobile projects)                                            | ✅                                                                     |
+| 2   | `wrangler.toml` — name, `main` from the adapter, D1 binding `DB`, `nodejs_compat`, `[assets]`                                                                             | ✅ Real `database_id`; migration and seed both applied to the local D1 |
+| 3   | Drizzle `schema.ts` (18 tables: §6 + Better Auth), `drizzle.config.ts`, first migration in `drizzle/`                                                                     | ✅                                                                     |
+| 4   | Better Auth (GitHub + Google, drizzleAdapter), `hooks.server.ts`, `/api/auth/[...all]`, `allowlist.ts` in `user.create.before`, `/login` with two buttons                 | ✅ Untested against real OAuth — needs the client IDs                  |
+| 5   | `guards.ts` with `requireUser(event)`                                                                                                                                     | ✅                                                                     |
+| 6   | CSP `mode: 'auto'` with strict directives                                                                                                                                 | ✅                                                                     |
+| 7   | PWA — manifest, dark theme, `display: standalone`, minimal SW                                                                                                             | ✅ Icons generated from the theme tokens by `scripts/gen-icons.ts`     |
+| 8   | `src/lib/srs/` — FSRS + unit tests, including the property tests                                                                                                          | ✅ 21 tests                                                            |
+| 9   | `src/lib/cards/schemas.ts` + a test per refinement                                                                                                                        | ✅ 60 tests                                                            |
+| 10  | `.dev.vars.example` with every §15 variable                                                                                                                               | ✅                                                                     |
+| 11  | `.github/workflows/ci.yml` + `deploy.yml`                                                                                                                                 | ✅ Deploy needs the repo secrets before it can run                     |
+| 12  | `LICENSE`, `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `PLAN.md`, ADR 001-008, `docs/PROMPT-v2.1.md`, `docs/architecture.md` with the delta note | ✅                                                                     |
+| 13  | `seed-dev.ts` — 1 deck, 2 topics, 20 fake cards, local D1 only                                                                                                            | ✅                                                                     |
 
 Extras beyond the phase list, because they were needed to make the above true:
 `scripts/content/{validate,stats,translate-check,sync}.ts` (sync is a deliberate
@@ -74,9 +74,18 @@ e2e suite, so CI is the first place that notices: a local `npm run test:e2e` wit
 preview server already up will pass on a config that fails from cold, because
 `reuseExistingServer` skips the startup that breaks.
 
-The `npm run dev` → GitHub login → dashboard path cannot be verified until the D1
-`database_id` and the OAuth credentials exist. That is the first thing to do at the
-start of Phase 1.
+The D1 database now exists. `wrangler.toml` carries the real `database_id`, and the
+schema ran for the first time: `db:migrate:local` applied `drizzle/0000_init.sql`
+(31 statements) and `seed:dev` wrote 1 deck, 2 topics and 20 cards, confirmed by
+counting rows in the local file. The binding stays `DB` — not the `devopsdojo_db`
+that `wrangler d1 create` suggests — because `src/lib/server/db/client.ts` reads
+`platform.env.DB`.
+
+That leaves the login half of the acceptance path. `npm run dev` → GitHub login →
+dashboard still cannot be walked, because no OAuth app exists yet: both providers
+start up with "missing clientId or clientSecret". Everything up to the redirect is
+verifiable and verified; the redirect itself is the first thing to do at the start
+of Phase 1.
 
 ## Phase 1 — The three modes, on seed content
 
@@ -124,18 +133,21 @@ twice is a no-op.
 ## Blockers
 
 Nothing blocks writing code. These block _verifying_ it, and all of them are on
-the user's side:
+the user's side.
 
-1. **D1 `database_id`** — `wrangler.toml` still says
-   `PLACEHOLDER_RUN_WRANGLER_D1_CREATE`. Until it is real, `db:migrate:local` and
-   `seed:dev` cannot run, so neither can the integration tests.
-2. **OAuth credentials** — no login without them, and login gates every page.
-3. **Repo secrets** — `deploy.yml` is committed but will fail until
-   `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` exist.
-   Resolved: the GitHub repository now exists at
-   [valeboth/devopsdojo](https://github.com/valeboth/devopsdojo), `main` is pushed, and
-   CI runs on it. Pushing happens from the user's shell, not from the assistant's
-   sandbox, which has no GitHub credentials and sits behind a TLS-intercepting proxy.
+1. ~~**D1 `database_id`**~~ — resolved. `devopsdojo-db` exists, `wrangler.toml`
+   has its id, and both `db:migrate:local` and `seed:dev` have run against it.
+   Integration tests are unblocked.
+2. **OAuth credentials** — still open, and the only real blocker left. No login
+   without them, and login gates every page.
+3. ~~**Repo secrets**~~ — resolved. `CLOUDFLARE_API_TOKEN` and
+   `CLOUDFLARE_ACCOUNT_ID` are set on the repository, so `deploy.yml` can run.
+   Unverified until a merge to `main` actually triggers it — the session never
+   deploys, by rule.
+
+The repository is at [valeboth/devopsdojo](https://github.com/valeboth/devopsdojo)
+and CI is green on it. Work reaches `main` as a PR: the assistant pushes the branch
+and opens the PR, the user merges.
 
 ## Deliberate deviations from PROMPT-v2.1
 
@@ -158,8 +170,9 @@ Recorded here rather than silently absorbed, per rule #10.
   silently upserts nothing is worse than one that refuses. `deploy.yml` guards the
   call with `hashFiles('content/decks/**/*.json') != ''`, so an empty `content/`
   does not fail a deploy. Both go away in Phase 2.
-- **Integration tests do not exist yet.** `tests/integration/` needs a local D1,
-  which needs blocker 1. The Vitest config already expects the directory.
+- **Integration tests do not exist yet.** The local D1 is now migrated and seeded,
+  so `tests/integration/` is no longer blocked — it just has not been written. The
+  Vitest config already expects the directory.
 - **The schema is frozen from Phase 1 on.** After the first real migration is
   applied to production, changes are forward-only: a new migration, never an edit
   to an existing one.
@@ -169,29 +182,18 @@ Recorded here rather than silently absorbed, per rule #10.
 
 ## What the user has to do
 
-Neither of the first two can be done from this session — creating a D1 database and
-registering an OAuth app both need credentials that are deliberately outside the
-sandbox.
+Done: the repository exists, the D1 database exists and is migrated and seeded, and
+the two Cloudflare repo secrets are set. What is left needs credentials that are
+deliberately outside the sandbox.
 
-```sh
-gh repo create valeboth/devopsdojo --public   # or from the web UI
-
-npx wrangler d1 create devopsdojo-db          # paste database_id into wrangler.toml
-npm run db:migrate:local
-npm run seed:dev
-```
-
-Then:
-
-3. **GitHub OAuth App** — callbacks `http://localhost:5173/api/auth/callback/github`
+1. **GitHub OAuth App** — callbacks `http://localhost:5173/api/auth/callback/github`
    and `https://devopsdojo.valegboth.win/api/auth/callback/github`. Same for Google
-   (`…/callback/google`) if you want that button to work.
-4. `wrangler secret put <NAME>` for every variable in
+   (`…/callback/google`) if you want that button to work. This is the last thing
+   blocking the Phase 0 acceptance path.
+2. `wrangler secret put <NAME>` for every variable in
    [§15](docs/PROMPT-v2.1.md) / the README's Secrets table. Locally the same values
    go in `.dev.vars`, which is gitignored.
-5. Repo secrets: `CLOUDFLARE_API_TOKEN` (Workers Scripts:Edit, D1:Edit, Account
-   Settings:Read) and `CLOUDFLARE_ACCOUNT_ID`.
-6. Custom domain `devopsdojo.valegboth.win` on the Worker, from the Cloudflare
-   dashboard.
-7. Copy the course transcripts into `content/sources/transcripts/` — gitignored,
+3. Custom domain `devopsdojo.valegboth.win` on the Worker, from the Cloudflare
+   dashboard. Needs the `valegboth.win` zone in the same account.
+4. Copy the course transcripts into `content/sources/transcripts/` — gitignored,
    and it stays that way.
