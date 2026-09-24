@@ -13,7 +13,6 @@
 <main class="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-between px-4">
   <div class="safe-top flex flex-1 flex-col justify-center gap-3 text-center">
     <h1 class="text-3xl font-bold tracking-tight">devopsdojo</h1>
-    <p class="text-fg-muted text-base">De la zero la senior DevOps, o lecție scurtă pe zi.</p>
   </div>
 
   <!-- Buttons sit in the bottom half: that is where a thumb reaches (§13). -->
@@ -45,9 +44,5 @@
     >
       {submitting === 'google' ? 'Se deschide Google…' : 'Continuă cu Google'}
     </button>
-
-    <p class="text-fg-muted pt-2 text-center text-xs">
-      Ne autentificăm doar prin GitHub sau Google — nu stocăm parole.
-    </p>
   </form>
 </main>
