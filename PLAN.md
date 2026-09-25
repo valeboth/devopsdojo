@@ -20,14 +20,14 @@ in the local D1, CI is green on a PR.
 | 1   | SvelteKit skeleton, TS strict, adapter-cloudflare, Tailwind 4, ESLint flat, Prettier, Vitest, Playwright (two mobile projects)                                            | ✅                                                                     |
 | 2   | `wrangler.toml` — name, `main` from the adapter, D1 binding `DB`, `nodejs_compat`, `[assets]`                                                                             | ✅ Real `database_id`; migration and seed both applied to the local D1 |
 | 3   | Drizzle `schema.ts` (18 tables: §6 + Better Auth), `drizzle.config.ts`, first migration in `drizzle/`                                                                     | ✅                                                                     |
-| 4   | Better Auth (GitHub + Google, drizzleAdapter), `hooks.server.ts`, `/api/auth/[...all]`, `allowlist.ts` in `user.create.before`, `/login` with two buttons                 | ✅ Untested against real OAuth — needs the client IDs                  |
+| 4   | Better Auth (GitHub + Google, drizzleAdapter), `hooks.server.ts`, `/api/auth/[...all]`, `allowlist.ts` in `user.create.before`, `/login` with two buttons                 | ✅ GitHub verified against real OAuth; Google unconfigured             |
 | 5   | `guards.ts` with `requireUser(event)`                                                                                                                                     | ✅                                                                     |
 | 6   | CSP `mode: 'auto'` with strict directives                                                                                                                                 | ✅                                                                     |
 | 7   | PWA — manifest, dark theme, `display: standalone`, minimal SW                                                                                                             | ✅ Icons generated from the theme tokens by `scripts/gen-icons.ts`     |
 | 8   | `src/lib/srs/` — FSRS + unit tests, including the property tests                                                                                                          | ✅ 21 tests                                                            |
 | 9   | `src/lib/cards/schemas.ts` + a test per refinement                                                                                                                        | ✅ 60 tests                                                            |
 | 10  | `.dev.vars.example` with every §15 variable                                                                                                                               | ✅                                                                     |
-| 11  | `.github/workflows/ci.yml` + `deploy.yml`                                                                                                                                 | ✅ Deploy needs the repo secrets before it can run                     |
+| 11  | `.github/workflows/ci.yml` + `deploy.yml`                                                                                                                                 | ✅ Both green; deploy is live on the custom domain                     |
 | 12  | `LICENSE`, `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `PLAN.md`, ADR 001-008, `docs/PROMPT-v2.1.md`, `docs/architecture.md` with the delta note | ✅                                                                     |
 | 13  | `seed-dev.ts` — 1 deck, 2 topics, 20 fake cards, local D1 only                                                                                                            | ✅                                                                     |
 
@@ -81,11 +81,29 @@ counting rows in the local file. The binding stays `DB` — not the `devopsdojo_
 that `wrangler d1 create` suggests — because `src/lib/server/db/client.ts` reads
 `platform.env.DB`.
 
-That leaves the login half of the acceptance path. `npm run dev` → GitHub login →
-dashboard still cannot be walked, because no OAuth app exists yet: both providers
-start up with "missing clientId or clientSecret". Everything up to the redirect is
-verifiable and verified; the redirect itself is the first thing to do at the start
-of Phase 1.
+**The acceptance path is now walked end to end.** With a GitHub OAuth App and
+`.dev.vars` in place, `npm run dev` → GitHub login → back signed in works: `user`,
+`account` (`provider_id = github`) and `user_profile` each hold the expected row in
+the local D1.
+
+Getting there took two bugs that only a real browser could show, both invisible to
+`curl` and to the smoke tests as they were. First, `/login` submitted nothing at
+all: the pressed button set `submitting` in its own click handler, Svelte applied
+`disabled` synchronously, and Chrome cancels a submit whose submitter is disabled
+before the default action. No request, no console error, a clean server log — the
+button simply did nothing. The label now changes from the form's `onsubmit` and no
+button is disabled. Second, `form-action 'self'` would have blocked the next step:
+the directive covers a submission's redirect target, so the browser dropped the 303
+to GitHub while the server logged a normal 303.
+
+Both now have a test that fails without the fix — one reads the `form-action`
+directive off the response, the other asserts a click produces the request to
+`github.com/login/oauth/authorize` carrying `state` and `code_challenge`. The old
+test only checked that the form existed, which is why it passed throughout.
+
+The lesson for Phase 1: an assertion that an element is present is not an assertion
+that it works. Anything a thumb touches needs a test that follows through to the
+resulting request.
 
 ## Phase 1 — The three modes, on seed content
 
@@ -132,18 +150,25 @@ twice is a no-op.
 
 ## Blockers
 
-Nothing blocks writing code. These block _verifying_ it, and all of them are on
-the user's side.
+Every blocker that gated Phase 0 is closed. What is left is production-only.
 
 1. ~~**D1 `database_id`**~~ — resolved. `devopsdojo-db` exists, `wrangler.toml`
    has its id, and both `db:migrate:local` and `seed:dev` have run against it.
    Integration tests are unblocked.
-2. **OAuth credentials** — still open, and the only real blocker left. No login
-   without them, and login gates every page.
-3. ~~**Repo secrets**~~ — resolved. `CLOUDFLARE_API_TOKEN` and
-   `CLOUDFLARE_ACCOUNT_ID` are set on the repository, so `deploy.yml` can run.
-   Unverified until a merge to `main` actually triggers it — the session never
-   deploys, by rule.
+2. ~~**OAuth credentials**~~ — resolved for local. A GitHub OAuth App exists and
+   a real login completed. Google is deliberately unconfigured, so that button
+   500s; it is optional (ADR 002 needs one working provider, not both).
+3. ~~**Repo secrets**~~ — resolved, and exercised: `deploy.yml` ran green and
+   `https://devopsdojo.valegboth.win` serves the app. The token needed
+   `Zone:Workers Routes:Edit` on top of Workers Scripts and D1 — without it the
+   Worker uploads fine and only the route registration fails.
+
+**Production has no runtime secrets yet.** `wrangler secret list --name devopsdojo`
+returns `[]`, so the live site serves its public pages but cannot sign anyone in.
+That needs a second GitHub OAuth App (or a second redirect URI on the existing one,
+which allows up to ten) plus `wrangler secret put` for `BETTER_AUTH_SECRET`,
+`BETTER_AUTH_URL`, `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`. Secrets take
+effect without a redeploy.
 
 The repository is at [valeboth/devopsdojo](https://github.com/valeboth/devopsdojo)
 and CI is green on it. Work reaches `main` as a PR: the assistant pushes the branch
@@ -161,6 +186,7 @@ Recorded here rather than silently absorbed, per rule #10.
 | `scripts/content/load.ts` exists (not in the §5 tree)                                                       | `stats`, `sync` and `translate-check` all need "every validated deck and topic". Without it each would re-walk `content/` with its own subtly different idea of ordering and error handling.                                                                                                                                                       |
 | Scripts run as `node --import tsx/esm <file>.ts`, not `tsx <file>.ts` (§15 lists `tsx scripts/seed-dev.ts`) | The `tsx` CLI opens an IPC unix socket under `$TMPDIR`, which the development sandbox denies with `EPERM` — so `content:validate`, and therefore `npm run check`, could not run at all. Using tsx as a loader under plain `node` does the same TypeScript stripping with no socket. Same behaviour in CI, one dependency less in the hot path.     |
 | `npm run icons` added to the scripts table                                                                  | Needed to regenerate what `gen-icons.ts` produces; not part of `check`.                                                                                                                                                                                                                                                                            |
+| `form-action` lists `github.com` and `accounts.google.com` (§7 says strict CSP)                             | The login form 303s to the provider, and `form-action` governs a submission's redirect target as well as its initial POST. Under bare `'self'` the browser drops that redirect silently. Listing the two authorization endpoints is narrower than loosening the directive, and everything else stays `'self'`.                                     |
 | `playwright.config.ts` sets `webServer.env` (§15 does not mention it)                                       | Under `vite preview` the adapter supplies a real `platform.env`, so Better Auth initialises and throws without `BETTER_AUTH_SECRET` — every route 500s and the whole e2e suite fails for a reason unrelated to the tests. The fallbacks are throwaway: the anonymous flows never reach a provider, and real values from the shell take precedence. |
 | Verbatim documents are in `.prettierignore`                                                                 | `prompt.md`, `arhitecture.md`, their `docs/` copies, `CODE_OF_CONDUCT.md` and `LICENSE` are copies of external text. Letting a formatter rewrite them would produce a diff against the source they were copied from, which is the only reason to keep them verbatim.                                                                               |
 
@@ -182,18 +208,18 @@ Recorded here rather than silently absorbed, per rule #10.
 
 ## What the user has to do
 
-Done: the repository exists, the D1 database exists and is migrated and seeded, and
-the two Cloudflare repo secrets are set. What is left needs credentials that are
+Done: the repository, the D1 database (migrated and seeded), the Cloudflare repo
+secrets, a GitHub OAuth App, `.dev.vars`, the custom domain, and a green deploy.
+Local development is fully working. What is left needs credentials that are
 deliberately outside the sandbox.
 
-1. **GitHub OAuth App** — callbacks `http://localhost:5173/api/auth/callback/github`
-   and `https://devopsdojo.valegboth.win/api/auth/callback/github`. Same for Google
-   (`…/callback/google`) if you want that button to work. This is the last thing
-   blocking the Phase 0 acceptance path.
-2. `wrangler secret put <NAME>` for every variable in
-   [§15](docs/PROMPT-v2.1.md) / the README's Secrets table. Locally the same values
-   go in `.dev.vars`, which is gitignored.
-3. Custom domain `devopsdojo.valegboth.win` on the Worker, from the Cloudflare
-   dashboard. Needs the `valegboth.win` zone in the same account.
-4. Copy the course transcripts into `content/sources/transcripts/` — gitignored,
+1. **Production login.** Add
+   `https://devopsdojo.valegboth.win/api/auth/callback/github` as a second redirect
+   URI on the OAuth App, then `wrangler secret put` for `BETTER_AUTH_SECRET`,
+   `BETTER_AUTH_URL` (the https one), `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
+   and, if you want it, `ALLOWED_EMAILS`. A separate App keeps prod and laptop
+   secrets apart, which is the safer choice if you care.
+2. **Google** (optional) — a client plus `…/callback/google`. Until then that
+   button 500s by design.
+3. Copy the course transcripts into `content/sources/transcripts/` — gitignored,
    and it stays that way.
