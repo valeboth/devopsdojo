@@ -4,7 +4,6 @@ import { defineConfig, devices } from '@playwright/test';
 // viewports. There is no desktop project — desktop is "it works there too".
 export default defineConfig({
   testDir: 'tests/e2e',
-  globalSetup: './tests/e2e/global-setup.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -27,18 +26,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run build && npm run preview',
+    // prepare.mjs writes a throwaway .dev.vars and applies the migrations; both
+    // must happen before the server reads them, hence the same command.
+    command: 'node tests/e2e/prepare.mjs && npm run build && npm run preview',
     port: 4173,
     reuseExistingServer: !process.env.CI,
-    // preview gets a real platform.env, so Better Auth initialises and 500s on a
-    // missing secret. Throwaway values; real ones from the shell win.
-    env: {
-      BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? 'e2e-only-not-a-real-secret',
-      BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? 'http://localhost:4173',
-      GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID ?? 'e2e',
-      GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET ?? 'e2e',
-      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? 'e2e',
-      GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ?? 'e2e',
-    },
   },
 });
