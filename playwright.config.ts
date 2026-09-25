@@ -4,6 +4,7 @@ import { defineConfig, devices } from '@playwright/test';
 // viewports. There is no desktop project — desktop is "it works there too".
 export default defineConfig({
   testDir: 'tests/e2e',
+  globalSetup: './tests/e2e/global-setup.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
