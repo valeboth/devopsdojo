@@ -34,7 +34,9 @@ export default defineConfig({
           'connect-src': ['self'],
           'frame-ancestors': ['none'],
           'base-uri': ['self'],
-          'form-action': ['self'],
+          // Login is a POST form (ADR 001) that 303s to the provider, and
+          // form-action applies to the redirect target too.
+          'form-action': ['self', 'https://github.com', 'https://accounts.google.com'],
           'object-src': ['none'],
         },
       },

@@ -8,12 +8,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'list',
-  // One worker, deliberately. The preview server runs the real Worker through
-  // Miniflare, whose D1 is a single local SQLite file — concurrent requests make
-  // workerd die on startup with `SQLITE_BUSY: database is locked`, taking the
-  // whole run with it. Reproduced at 7 and at 4 workers, clean at 1. Nothing is
-  // lost: the suite is seconds long, and it is the app's own concurrency that
-  // matters, not the test runner's.
+  // Miniflare backs D1 with one SQLite file; concurrent workers kill workerd on
+  // startup with SQLITE_BUSY. Fails at 4 and 7, clean at 1.
   workers: 1,
   use: {
     baseURL: 'http://localhost:4173',
@@ -30,22 +26,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run build && npm run preview',
+    // prepare.mjs writes a throwaway .dev.vars and applies the migrations; both
+    // must happen before the server reads them, hence the same command.
+    command: 'node tests/e2e/prepare.mjs && npm run build && npm run preview',
     port: 4173,
     reuseExistingServer: !process.env.CI,
-    // adapter-cloudflare gives the preview server a real `platform.env`, so
-    // Better Auth initialises on every request — and throws on a missing
-    // secret, which turns every page into a 500. These are throwaway values for
-    // a throwaway server: the anonymous flows never reach a provider, and the
-    // D1 binding is Miniflare's local file. Real credentials, if the shell has
-    // them, win.
-    env: {
-      BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? 'e2e-only-not-a-real-secret',
-      BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? 'http://localhost:4173',
-      GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID ?? 'e2e',
-      GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET ?? 'e2e',
-      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? 'e2e',
-      GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ?? 'e2e',
-    },
   },
 });

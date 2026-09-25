@@ -4,6 +4,13 @@
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
   let submitting = $state<'github' | 'google' | null>(null);
+
+  // Disabling the pressed button inside its own click handler makes Chrome cancel
+  // the submit, so the label changes on submit and nothing is disabled.
+  function onsubmit(event: SubmitEvent) {
+    const provider = (event.submitter as HTMLButtonElement | null)?.value;
+    submitting = provider === 'google' ? 'google' : 'github';
+  }
 </script>
 
 <svelte:head>
@@ -16,7 +23,7 @@
   </div>
 
   <!-- Buttons sit in the bottom half: that is where a thumb reaches (§13). -->
-  <form method="POST" class="action-area flex flex-col gap-3 pt-6">
+  <form method="POST" class="action-area flex flex-col gap-3 pt-6" {onsubmit}>
     <input type="hidden" name="next" value={data.next} />
 
     {#if form?.message}
@@ -27,9 +34,7 @@
       type="submit"
       name="provider"
       value="github"
-      class="bg-fg text-bg flex min-h-tap w-full items-center justify-center gap-2 rounded-xl px-4 text-base font-semibold active:opacity-80 disabled:opacity-60"
-      disabled={submitting !== null}
-      onclick={() => (submitting = 'github')}
+      class="bg-fg text-bg flex min-h-tap w-full items-center justify-center gap-2 rounded-xl px-4 text-base font-semibold active:opacity-80"
     >
       {submitting === 'github' ? 'Se deschide GitHub…' : 'Continuă cu GitHub'}
     </button>
@@ -38,9 +43,7 @@
       type="submit"
       name="provider"
       value="google"
-      class="border-border text-fg flex min-h-tap w-full items-center justify-center gap-2 rounded-xl border px-4 text-base font-semibold active:opacity-80 disabled:opacity-60"
-      disabled={submitting !== null}
-      onclick={() => (submitting = 'google')}
+      class="border-border text-fg flex min-h-tap w-full items-center justify-center gap-2 rounded-xl border px-4 text-base font-semibold active:opacity-80"
     >
       {submitting === 'google' ? 'Se deschide Google…' : 'Continuă cu Google'}
     </button>
